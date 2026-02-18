@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EcoCorridor GIS</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #f0f9f0 0%, #e8f5e8 50%, #ffffff 100%);
+      background-attachment: fixed;
+      min-height: 100vh;
+    }
+    #root {
+      background: rgba(255, 255, 255, 0.9);
+      backdrop-filter: blur(10px);
+      min-height: 100vh;
+    }
+    .card {
+      background: linear-gradient(145deg, #ffffff 0%, #f8faf8 100%);
+      border: 1px solid rgba(229, 231, 235, 0.8);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+    .map-container {
+      background: linear-gradient(145deg, #ffffff 0%, #f0f8f0 100%);
+      border: 1px solid rgba(229, 231, 235, 0.8);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div id="root">
+    <!-- Header -->
+    <header style="border-bottom: 1px solid rgba(221, 221, 221, 0.5); background: rgba(255,255,255,0.95); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 10;">
+      <div style="max-width: 80rem; margin: 0 auto; padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 0.75rem;">
+          <div style="height: 2.5rem; width: 2.5rem; border-radius: 0.5rem; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, hsl(160,60%,30%), hsl(180,45%,25%)); box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+            🌿
+          </div>
+          <div>
+            <h1 style="font-size: 1.125rem; font-weight: 700; font-family: 'Space Grotesk', sans-serif; color: hsl(160,60%,30%);">EcoCorridor GIS</h1>
+            <p style="font-size: 0.75rem; color: #6b7280;">Development Authorization System</p>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: #6b7280;">
+          🌍 <span>Kenyan Wildlife Service</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main style="max-width: 80rem; margin: 0 auto; padding: 1.5rem;">
+      <div style="display: grid; grid-template-columns: 380px 1fr; gap: 1.5rem; height: calc(100vh - 120px);">
+        
+        <!-- Sidebar -->
+        <aside style="overflow-y: auto;">
+          <!-- Coordinate Form Card -->
+          <div class="card" style="border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.25rem;">
+            <h2 style="font-size: 1rem; font-weight: 600; font-family: 'Space Grotesk', sans-serif; color: hsl(160,60%,30%);">Check Development Permission</h2>
+            <p style="font-size: 0.875rem; color: #6b7280; margin-bottom: 1.25rem;">
+              Enter proposed coordinates to verify if the location is within a protected wildlife corridor.
+            </p>
+            <form id="permissionForm">
+              <div style="margin-bottom: 1rem;">
+                <label style="font-size: 0.875rem; font-weight: 500; color: #374151;">Latitude</label>
+                <input id="latInput" type="number" step="any" placeholder="-1.4100" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;" required />
+              </div>
+              <div style="margin-bottom: 1rem;">
+                <label style="font-size: 0.875rem; font-weight: 500; color: #374151;">Longitude</label>
+                <input id="lonInput" type="number" step="any" placeholder="35.0120" style="width: 100%; padding: 0.5rem; border: 1px solid #e5e7eb; border-radius: 0.5rem; background: #fafafa;" required />
+              </div>
+              <button type="submit" style="width: 100%; padding: 0.625rem; background: linear-gradient(135deg, hsl(160,60%,30%), hsl(180,45%,25%)); color: #fff; border: none; border-radius: 0.5rem; font-weight: 600; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,0.2); transition: transform 0.2s;">
+                Check Permission
+              </button>
+            </form>
+          </div>
+
+          <!-- Result Card (shown after check) -->
+          <div id="resultCard" class="card" style="border-radius: 0.75rem; padding: 1.5rem; margin-bottom: 1.25rem; display: none;">
+            <h2 style="font-size: 1rem; font-weight: 600; font-family: 'Space Grotesk', sans-serif; color: hsl(160,60%,30%);">Permission Result</h2>
+            <p id="resultText" style="font-size: 0.875rem; color: #6b7280; margin-top: 0.5rem;"></p>
+          </div>
+
+          <!-- Stats Panel -->
+          <div class="card" style="border-radius: 0.75rem; padding: 1.5rem;">
+            <h2 style="font-size: 1rem; font-weight: 600; font-family: 'Space Grotesk', sans-serif; color: hsl(160,60%,30%);">Corridor Statistics</h2>
+            <div style="margin-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+              <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: hsl(160,60%,30%);">4</div>
+                <div style="font-size: 0.75rem; color: #6b7280;">Water Bodies</div>
+              </div>
+              <div style="text-align: center;">
+                <div style="font-size: 1.5rem; font-weight: 700; color: hsl(160,60%,30%);">1</div>
+                <div style="font-size: 0.75rem; color: #6b7280;">Migration Route</div>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Map -->
+        <div class="map-container" style="border-radius: 0.75rem; overflow: hidden; min-height: 400px;">
+          <div id="map" style="width: 100%; height: 100%;"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    // Initialize map
+    const map = L.map('map', { zoomControl: false })
+      .setView([-1.4100, 35.0120], 14);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap',
+      maxZoom: 19
+    }).addTo(map);
+
+    L.control.zoom({ position: 'topright' }).addTo(map);
+
+    // Wildlife corridor polygon
+    const corridorCoords = [
+      [-1.4050, 35.0050], [-1.4050, 35.0200],
+      [-1.4150, 35.0200], [-1.4150, 35.0050]
+    ];
+    const corridor = L.polygon(corridorCoords, {
+      color: '#ef4444', weight: 3,
+      fillColor: '#ef4444', fillOpacity: 0.25,
+      dashArray: '10 5'
+    }).addTo(map).bindPopup('<b style="color:#ef4444;">⛔ Protected Wildlife Migration Corridor</b>');
+
+    // Water bodies
+    const waterBodies = [
+      { name: "Mara River Section", coords: [[-1.4020,35.0000],[-1.4035,35.0015],[-1.4060,35.0010],[-1.4080,35.0025],[-1.4095,35.0020],[-1.4090,35.0035],[-1.4075,35.0040],[-1.4050,35.0035],[-1.4030,35.0020],[-1.4020,35.0000]] },
+      { name: "Seasonal Wetland", coords: [[-1.4160,35.0220],[-1.4170,35.0245],[-1.4190,35.0250],[-1.4195,35.0230],[-1.4180,35.0215],[-1.4160,35.0220]] },
+      { name: "Watering Hole", coords: [[-1.4120,35.0260],[-1.4125,35.0275],[-1.4140,35.0280],[-1.4145,35.0265],[-1.4135,35.0255],[-1.4120,35.0260]] },
+      { name: "Stream Pool", coords: [[-1.4040,35.0160],[-1.4045,35.0175],[-1.4055,35.0178],[-1.4058,35.0165],[-1.4048,35.0155],[-1.4040,35.0160]] }
+    ];
+
+    waterBodies.forEach(wb => {
+      L.polygon(wb.coords, {
+        color: '#38bdf8', weight: 2,
+        fillColor: '#0ea5e9', fillOpacity: 0.35
+      }).addTo(map).bindPopup(`<b style="color:#0ea5e9;">💧 ${wb.name}</b>`);
+    });
+
+    // Stream polyline
+    L.polyline([
+      [-1.4020,35.0000],[-1.4035,35.0015],[-1.4040,35.0040],[-1.4040,35.0080],
+      [-1.4038,35.0120],[-1.4040,35.0160],[-1.4050,35.0200],[-1.4070,35.0230],
+      [-1.4100,35.0250],[-1.4120,35.0260]
+    ], { color: '#38bdf8', weight: 3, opacity: 0.7, dashArray: '6 4' })
+      .addTo(map).bindPopup('<b style="color:#0ea5e9;">💧 Tributary Stream</b>');
+
+    // Function to check if point is inside the corridor (rectangle)
+    function isPointInCorridor(lat, lon) {
+      const minLat = Math.min(...corridorCoords.map(coord => coord[0]));
+      const maxLat = Math.max(...corridorCoords.map(coord => coord[0]));
+      const minLon = Math.min(...corridorCoords.map(coord => coord[1]));
+      const maxLon = Math.max(...corridorCoords.map(coord => coord[1]));
+      return lat >= minLat && lat <= maxLat && lon >= minLon && lon <= maxLon;
+    }
+
+    // Form submission handler
+    document.getElementById('permissionForm').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const lat = parseFloat(document.getElementById('latInput').value);
+      const lon = parseFloat(document.getElementById('lonInput').value);
+      
+      if (isNaN(lat) || isNaN(lon)) {
+        alert('Please enter valid coordinates.');
+        return;
+      }
+
+      const inCorridor = isPointInCorridor(lat, lon);
+      const resultCard = document.getElementById('resultCard');
+      const resultText = document.getElementById('resultText');
+      
+      if (inCorridor) {
+        resultText.innerHTML = `<span style="color: #ef4444; font-weight: 600;">❌ Development NOT permitted.</span><br>The proposed location is within a protected wildlife migration corridor. Please consult the Kenyan Wildlife Service for alternative sites.`;
+      } else {
+        resultText.innerHTML = `<span style="color: hsl(160,60%,30%); font-weight: 600;">✅ Development permitted.</span><br>The proposed location is outside protected areas. Ensure compliance with local environmental regulations.`;
+      }
+      
+      resultCard.style.display = 'block';
+      
+      // Add a marker on the map for the checked point
+      L.marker([lat, lon]).addTo(map).bindPopup(`Checked Point: ${lat}, ${lon}<br>${inCorridor ? 'Inside Corridor' : 'Outside Corridor'}`).openPopup();
+      map.setView([lat, lon], 16);
+    });
+  </script>
+</body>
+</html>
